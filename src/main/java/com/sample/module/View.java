@@ -3,6 +3,7 @@ package com.sample.module;
 import com.sample.entity.User;
 import com.sample.mvputil.BaseView;
 import com.sample.service.UserService;
+import com.sun.xml.bind.v2.schemagen.xmlschema.List;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
@@ -18,8 +19,11 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jms.core.JmsTemplate;
 
 import java.awt.*;
+import java.util.ArrayDeque;
+import java.util.Queue;
 
 @Route("")
 @SpringComponent
@@ -28,6 +32,14 @@ public class View extends BaseView<Presenter> {
 
     @Autowired
     Presenter presenter;
+
+    @Autowired
+    MessageController messageController;
+
+    @Autowired
+    MessageListener messageListener;
+    @Autowired
+    private JmsTemplate jmsTemplate;
 
     HorizontalLayout horizontalLayout;
     HorizontalLayout buttonLayout;
@@ -41,6 +53,10 @@ public class View extends BaseView<Presenter> {
     Button saveButton;
     Button cancelButton;
     Binder<User> userBinder;
+    TextField messageField;
+    Button sendMEssageButton;
+    Button receiveButton;
+    Grid<String> messageGrid;
 
 
     @Override
@@ -51,6 +67,10 @@ public class View extends BaseView<Presenter> {
         gridIntit();
         initFieldLayout();
         initBinder();
+        Queue queue = new ArrayDeque();
+        jmsTemplate.convertAndSend("queue","My message");
+        String o = (String)jmsTemplate.receiveAndConvert("queue");
+        System.out.println("Message : " + o);
     }
 
     public void setButtonLayout(){
@@ -159,5 +179,24 @@ public class View extends BaseView<Presenter> {
         dataProvider.getItems().remove(user);
         dataProvider.refreshAll();
         presenter.deleteUser(user);
+    }
+
+    public void sendAndReceiveMessage(){
+        messageField = new TextField("Message Field");
+        sendMEssageButton = new Button("Send");
+        receiveButton = new Button("Receive");
+        messageGrid = new Grid<>();
+        ListDataProvider listDataProvider = (ListDataProvider) messageGrid.getDataProvider();
+
+        sendMEssageButton.addClickListener(event -> {
+            messageController.sendMessage(messageField.getValue());
+        });
+
+        receiveButton.addClickListener(event -> {
+            String o = (String)jmsTemplate.receiveAndConvert("sample.queue");
+            listDataProvider.getItems().add(o);
+        });
+        add(messageField, sendMEssageButton, receiveButton, messageGrid);
+
     }
 }
