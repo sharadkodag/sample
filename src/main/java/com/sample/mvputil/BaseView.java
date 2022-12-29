@@ -4,7 +4,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import javax.annotation.PostConstruct;
 
 public abstract class BaseView<P extends Presenter> extends VerticalLayout implements View<P>, BeforeEnterObserver {

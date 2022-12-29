@@ -7,6 +7,7 @@ import com.sun.xml.bind.v2.schemagen.xmlschema.List;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -18,12 +19,19 @@ import com.vaadin.flow.data.provider.ListDataProvider;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import org.apache.catalina.webresources.FileResource;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.interactive.form.PDField;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.core.JmsTemplate;
 
-import java.awt.*;
-import java.util.ArrayDeque;
-import java.util.Queue;
+import javax.jms.JMSException;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 
 @Route("")
 @SpringComponent
@@ -32,15 +40,12 @@ public class View extends BaseView<Presenter> {
 
     @Autowired
     Presenter presenter;
-
     @Autowired
-    MessageController messageController;
-
+    MessageSender messageSender;
     @Autowired
-    MessageListener messageListener;
-    @Autowired
-    private JmsTemplate jmsTemplate;
+    MessageReceiver messageReceiver;
 
+    private Span span;
     HorizontalLayout horizontalLayout;
     HorizontalLayout buttonLayout;
     Grid<User> userGrid;
@@ -57,20 +62,18 @@ public class View extends BaseView<Presenter> {
     Button sendMEssageButton;
     Button receiveButton;
     Grid<String> messageGrid;
-
+    static final Logger logger = LogManager.getLogger(View.class);
+    static ArrayList<String> list = new ArrayList<>();
 
     @Override
     protected void init() {
         setSizeFull();
-
+        span = new Span();
         setButtonLayout();
         gridIntit();
         initFieldLayout();
         initBinder();
-        Queue queue = new ArrayDeque();
-        jmsTemplate.convertAndSend("queue","My message");
-        String o = (String)jmsTemplate.receiveAndConvert("queue");
-        System.out.println("Message : " + o);
+        sendAndReceiveMessage();
     }
 
     public void setButtonLayout(){
@@ -120,9 +123,14 @@ public class View extends BaseView<Presenter> {
             event.getFirstSelectedItem().ifPresent(user -> presenter.getUserById(user.getId()));
         });
 
+        Button pdfButton = new Button("PDF");
+        pdfButton.addClickListener(event -> {
+           getPdf();
+        });
+
         userGrid.setItems(presenter.getAllUser());
         horizontalLayout.add(userGrid);
-        add(horizontalLayout);
+        add(horizontalLayout, pdfButton);
     }
 
     public void initFieldLayout(){
@@ -186,17 +194,46 @@ public class View extends BaseView<Presenter> {
         sendMEssageButton = new Button("Send");
         receiveButton = new Button("Receive");
         messageGrid = new Grid<>();
+        messageGrid.setItems(list);
+        messageGrid.addColumn(String::toString);
         ListDataProvider listDataProvider = (ListDataProvider) messageGrid.getDataProvider();
 
         sendMEssageButton.addClickListener(event -> {
-            messageController.sendMessage(messageField.getValue());
+            try {
+                for(int i=0; i<=100; i++) {
+                    messageSender.sendMessage(messageField.getValue(), "q"+i);
+                }
+            } catch (JMSException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         receiveButton.addClickListener(event -> {
-            String o = (String)jmsTemplate.receiveAndConvert("sample.queue");
-            listDataProvider.getItems().add(o);
+//            span.add(messageReceiver.receiveMessage());
+//            String o = (String)jmsTemplate.receiveAndConvert("sample.queue");
+//            listDataProvider.getItems().add(o);
+            String message = messageReceiver.receiveMessage();
+            if(message!=null){
+                listDataProvider.getItems().add(message);
+            }
+//            messageGrid.setItems(listDataProvider.getItems());
+            listDataProvider.refreshAll();
         });
-        add(messageField, sendMEssageButton, receiveButton, messageGrid);
 
+        add(messageField, sendMEssageButton, receiveButton, messageGrid, span);
+    }
+
+    public void getPdf(){
+        PDDocument pdDocument = new PDDocument();
+        try {
+
+            pdDocument.save("pdf");
+//            pdDocument.sa
+//            new FileResource();
+            logger.info("Pdf created");
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

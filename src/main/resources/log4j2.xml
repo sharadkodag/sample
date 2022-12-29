@@ -2,15 +2,20 @@
 <Configuration>
     <Appenders>
         <Console name="STDOUT" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} %-5p %c{10} - %m%n" />
+            <PatternLayout disableAnsi="false" pattern="%style{%d{HH:mm:ss.SSS}}{blue} %highlight{%-5p}{FATAL=bg_red, INFO=green bold, ERROR=red, WARN=yellow} %c{10} - %m%n" />
         </Console>
+        <File name="MyFile" fileName="./example.log">
+            <PatternLayout>
+                <Pattern>%style{%date{default}}{blue} %highlight{%-5p}{FATAL=bg_red, INFO=green bold, ERROR=red, WARN=yellow} %c{10} - %m%n</Pattern>
+            </PatternLayout>
+        </File>
     </Appenders>
     <Loggers>
         <Logger name="sql" level="info" />
         <Logger name="org.hibernate.SQL" level="info" />
-        <Logger name="com.sample" level="all" />
-
+        <Logger name="com.sample" level="info" />
         <Root level="info">
+            <AppenderRef level="warn" ref="MyFile"/>
             <AppenderRef ref="STDOUT" />
         </Root>
     </Loggers>

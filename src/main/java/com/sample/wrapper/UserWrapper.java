@@ -4,14 +4,16 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.sample.entity.User;
+import com.sample.module.ExecutorConfig;
 import com.sample.service.UserService;
-import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -20,13 +22,11 @@ public class UserWrapper {
 
     @Autowired
     UserService userService;
+    @Autowired
+    ExecutorConfig executorConfig;
 
-    @PostConstruct
-    private void initializeCacheOnAppStartup() throws ExecutionException {
-        List<Integer> userIds = userService.getAllUser().stream().map(User::getId).collect(Collectors.toList());
-        userCache.getAll(userIds);
-//        getAllUser().forEach(user -> userCache.put(user.getId(), user));
-    }
+//    @Resource
+    ExecutorService executorService;
 
     private LoadingCache<Integer, User> userCache = CacheBuilder.newBuilder().build(
             new CacheLoader<Integer, User>() {
@@ -42,6 +42,106 @@ public class UserWrapper {
                 }
             }
     );
+
+    @PostConstruct
+    private void initializeCacheOnAppStartup() throws ExecutionException {
+//        ExecutorService executorService = Executors.newFixedThreadPool(2);
+//        Future<List<Integer>> userIds = executorService.submit(() -> userService.getAllUser().stream().map(User::getId).collect(Collectors.toList()));
+//        try {
+//            userCache.getAll(userIds.get());
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
+
+//        Future<List<Integer>> userIds = executorService.submit(() -> userService.getAllUser().stream().map(User::getId).collect(Collectors.toList()));
+//        try {
+//            userCache.getAll(userIds.get());
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
+
+        ExecutorService executorService = Executors.newFixedThreadPool(10);
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("ExecutorService");
+                List<Integer> collect = userService.getAllUser().stream().map(User::getId).collect(Collectors.toList());
+                try {
+                    userCache.getAll(collect);
+                } catch (ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+
+            }
+        });
+
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                for(int i=0; i<10; i++) {
+                    try {
+                        Thread.sleep(1000);
+                        System.out.println("Executor service 2");
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        });
+
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("ExecutorService 3");
+
+            }
+        });
+
+        executorService.shutdown();
+
+//        executorConfig.taskExecutor().execute(() -> {
+//            List<Integer> collect = userService.getAllUser().stream().map(User::getId).collect(Collectors.toList());
+//            try {
+//                userCache.getAll(collect);
+//            } catch (ExecutionException e) {
+//                throw new RuntimeException(e);
+//            }
+//        });
+//
+//        executorConfig.taskExecutor().execute(() -> {
+//            for(int i=0; i<100; i++){
+//                //                    Thread.sleep(1000);
+//            }
+//        });
+//
+//        executorConfig.taskExecutor().execute(() -> {
+//            for(int i=0; i<100; i++){
+//                //                    .sleep(Thread1000);
+//                System.out.println("thread 1");
+//            }
+//        });
+//
+//        executorConfig.taskExecutor().execute(() -> {
+//            for(int i=0; i<100; i++){
+//
+//                System.out.println("thread 2");
+//            }
+//        });
+//
+//        executorConfig.taskExecutor().execute(() -> {
+//            for(int i=0; i<100; i++){
+//                System.out.println("thread 3");
+//            }
+//        });
+
+        System.out.println("Hi");
+
+//        List<Integer> collect = userService.getAllUser().stream().map(User::getId).collect(Collectors.toList());
+//        userCache.getAll(collect);
+
+//        getAllUser().forEach(user -> userCache.put(user.getId(), user));
+
+    }
 
     private LoadingCache<Integer, Set<User>> allUseCache = CacheBuilder.newBuilder().build(
             new CacheLoader<Integer, Set<User>>() {
@@ -80,7 +180,7 @@ public class UserWrapper {
         }
     }
 
-    public Collection<User> getAllUserDataFromChache(){
+    public Collection<User> getAllUserDataFromCache(){
         return userCache.asMap().values();
     }
 

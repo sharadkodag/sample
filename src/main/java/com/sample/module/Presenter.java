@@ -1,6 +1,5 @@
 package com.sample.module;
 
-import com.sample.SampleApplication;
 import com.sample.entity.User;
 import com.sample.mvputil.BasePresenter;
 import com.sample.mvputil.BaseView;
@@ -12,7 +11,6 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Collection;
-import java.util.List;
 
 @UIScope
 @SpringComponent
@@ -27,7 +25,6 @@ public class Presenter extends BasePresenter<BaseView> {
         logger.info("This is info");
         logger.trace("This is trace");
         userWrapper.addUser(user);
-
     }
 
     public void updateUser(User user) {
@@ -43,7 +40,7 @@ public class Presenter extends BasePresenter<BaseView> {
     }
 
     public Collection<User> getAllUser() {
-        return userWrapper.getAllUserDataFromChache();
+        return userWrapper.getAllUserDataFromCache();
     }
 
 
